@@ -1,3 +1,12 @@
+## Fork: [@micahmo](https://github.com/micahmo)
+
+This is a fork of [ZeroQI/Absolute-Series-Scanner](https://github.com/ZeroQI/Absolute-Series-Scanner). It currently has no additions of its own:
+
+**Contributed upstream**
+- [Fix episode numbering for channel upload playlists (UU)](https://github.com/ZeroQI/Absolute-Series-Scanner/pull/529), which gave recent videos very low episode numbers
+
+---
+
 ## Plex scanner responsibilities
 A Plex Series Scanner makes the video files showing in Plex and populate the following for the video files:
 - Series name (including forced id passed to agent search() function)
