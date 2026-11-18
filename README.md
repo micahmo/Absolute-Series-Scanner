@@ -3,7 +3,7 @@
 This is a fork of [ZeroQI/Absolute-Series-Scanner](https://github.com/ZeroQI/Absolute-Series-Scanner). It currently has no additions of its own:
 
 **Contributed upstream**
-- [Fix episode numbering for channel upload playlists (UU)](https://github.com/ZeroQI/Absolute-Series-Scanner/pull/529), which gave recent videos very low episode numbers
+- [`#529`](https://github.com/ZeroQI/Absolute-Series-Scanner/pull/529) - Fix episode numbering for channel upload playlists (UU), which gave recent videos very low episode numbers
 
 ---
 
