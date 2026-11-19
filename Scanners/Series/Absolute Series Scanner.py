@@ -109,12 +109,13 @@ SEASON_RX       = [ cic(ur'^(Specials|Speciali|SPs?|映像特典)'),            
 SERIES_RX       = [                                                                                                                                                              ######### Series regex - "serie - xxx - title" ###
   cic(ur'(^|(?P<show>.*?)[ _\.\-]*)(?P<season>\d{1,2})XE?(?P<ep>\d{1,4})(([_\-X]|[_\-]\d{1,2}X)(?P<ep2>\d{1,4}))?([ _\.\-]+(?P<title>.*))?$'),                                   #  0 # 1x01
   cic(ur'(^|(?P<show>.*?)[ _\.\-]*)SE?(?P<season>\d{1,4})[ _\.\-]?EP?(?P<ep>\d{1,4})(([\-]|EP?|[ _\.\-]EP?)(?P<ep2>\d{1,4}))?[ _\.]*(?P<title>.*?)$'),                           #  1 # s01e01-02 | ep01-ep02 | e01-02 | s01-e01 | s01 e01'(^|(?P<show>.*?)[ _\.\-]+)(?P<ep>\d{1,4})[ _\.\-]?of[ _\.\-]?\d{1,4}([ _\.\-]+(?P<title>.*?))?$',                                                              #  2 # 01 of 08 (no stacking for this one ?)
-  cic(ur'^(?P<show>.*?)[ _\.]-[ _\.](EP?)?(?P<ep>\d{1,3})(-(?P<ep2>\d{1,3}))?(V\d)?[ _\.]*?(?P<title>.*)$'), # 2 # Serie - xx - title.ext | ep01-ep02 | e01-02
+  cic(ur'^(?P<show>.*?)[ _\.]-[ _\.](EP?)?(?P<ep>\d{1,4})(-(?P<ep2>\d{1,4}))?(V\d)?[ _\.]*?(?P<title>.*)$'), # 2 # Serie - xx - title.ext | ep01-ep02 | e01-02
   cic(ur'^(?P<show>.*?)[ _\.]\[(?P<season>\d{1,2})\][ _\.]\[(?P<ep>\d{1,4})\][ _\.](?P<title>.*)$'),
   cic(ur'^\[.*\]\[(?P<show>.*)\]\[第?(?P<ep>\d{1,4})[话話集]?(-(?P<ep2>\d{1,4})[话話集]?)?\].*$'),
   cic(ur'(^|(?P<show>.*)[ _\.\-]+)(?P<season>\d{1,2})ACV(?P<ep>\d{1,2})([ _\.\-]+(?P<title>.*)|$)') #20th Television production format (Futurama)
   ]
 MOVIE_RX        = cic(ur'(?P<show>.*) \((?P<year>\d{4})\)$')
+MOVIE_FOLDER_RX = cic(ur'(movie|oav|ova|ona|gekijouban)')
 DATE_RX         = [ cic(ur'(?P<year>19[0-9][0-9]|20[0-3][0-9])([\-\.\/\_])(?P<month>0[1-9]|1[0-2])\2(?P<day>0[1-9]|[12][0-9]|3[01])'),                                           #2024-05-21, 2024/25/31, 2024.05.31
                     cic(ur'(?P<day>0[1-9]|[12][0-9]|3[01])([ \-\.\/\_])(?P<month>0[1-9]|1[0-2])\2(?P<year>19[0-9][0-9]|20[0-3][0-9])')]                                          #21-05-2024, 21/05/2024, 21.05.2024 
 ANIDB_RX        = [                                                                                                                                                              ###### AniDB Specials episode offset regex array
@@ -457,7 +458,7 @@ def add_episode_into_plex(media, file, root, path, show, season=1, ep=1, title="
 
   # Season/Episode Offset
   if isinstance(ep, int) or isinstance(ep, str) and ep.isdigit():  #date-based
-    if season > 0:  season, ep, ep2 = season+offset_season if offset_season >= 0 else 0, int(ep)+offset_episode, int(ep2)+offset_episode if ep2 else None
+    season, ep, ep2 = season+offset_season if offset_season >= 0 else 0, int(ep)+offset_episode, int(ep2)+offset_episode if ep2 else None
 
     # Mapping List
     ep_orig        = "s{}e{}{}".format(season, ep, "" if not ep2 or ep==ep2 else "-{}".format(ep2))
@@ -1132,8 +1133,8 @@ def Scan(path, files, media, dirs, language=None, root=None, **kwargs): #get cal
       else: filename = clean_string(filename)
       ep = filename
       if "Complete Movie" in ep:  ep = "01"  ### Movies ### If using WebAOM (anidb rename), as clean_string remove leading " - "
-      elif len(files)==1 and (not re.search(ur'\d+(\.\d+)?', clean_string(filename, True)) or "movie" in ep.lower()+folder_show.lower() or "gekijouban" in ep.lower()+folder_show.lower() or "-m" in folder_show.split()):
-        ep, title = "01", folder_show  #if  ("movie" in ep.lower()+folder_show.lower() or "gekijouban" in folder_show.lower()) or "-m" in folder_show.split():  ep, title,      = "01", folder_show                  ### Movies ### If only one file in the folder & contains '(movie|gekijouban)' in the file or folder name
+      elif len(files)==1 and (not re.search(ur'\d+(\.\d+)?', clean_string(filename, True)) or MOVIE_FOLDER_RX.search(ep) or MOVIE_FOLDER_RX.search(folder_show) or "-m" in folder_show.split()):
+        ep, title = "01", folder_show  ### Movies ### If only one file in the folder & contains any of the words in MOVIE_FOLDER_RX in the file or folder name
       if folder_show and folder_season >= 1:                                                                                                                                         #
         for prefix in ("s%d" % folder_season, "s%02d" % folder_season):                                                         #"%s %d " % (folder_show, folder_season),
           if prefix in ep.lower() or prefix in misc_count and misc_count[prefix]>1:  ep = re.sub(prefix, "", ep, 1, re.IGNORECASE).lstrip()   # Series S2  like transformers (bad naming)  # Serie S2  in season folder, Anidb specials regex doesn't like
@@ -1258,8 +1259,15 @@ def Scan(path, files, media, dirs, language=None, root=None, **kwargs): #get cal
       if " - " in ep and len(ep.split(" - "))>1:  title = clean_string(" - ".join(ep.split(" - ")[1:])).strip()
       COUNTER = COUNTER+1
       #Log.info(u'COUNTER "{}"'.format(COUNTER))
-      if not path and not title:  unknown_holding.append([file, root, path, clean_string(root_filename), 1, 1, title or clean_string(filename, False, no_underscore=True), year, "", ""])
-      else:                       unknown_holding.append([file, root, path, show if path else title, 0, COUNTER, title or clean_string(filename, False, no_underscore=True), year, "", ""])
+      if not path and not title:
+        unknown_holding.append([file, root, path, clean_string(root_filename), 1, 1, title or clean_string(filename, False, no_underscore=True), year, "", ""])
+      else:
+        # We allow the user to override the episode offset for season 0 episodes.
+        # We don't allow arbitrary season offsets because when offset_season == 0, we can't be sure if the user wants to force season 1,
+        # or they omitted the season number altogether. And in all other cases, is the offset to be intended relative to season 1 or 0?
+        # On the contrary, offset_season == -1 can only happen if the user wants to explicitly set the season number to 0.
+        # In case the user specifies s0 without starting episode number, we will start at 1, rather than 501.
+        unknown_holding.append([file, root, path, show if path else title, 0, COUNTER, title or clean_string(filename, False, no_underscore=True), year, "", "", {}, unknown_series_length, 0, offset_episode - 500 if offset_season == -1 else 0, {}])
     if run_count == 1 and len(files) > 0 and len(unknown_holding) == len(files):
       Log.info(u"[All files were seen as unknown(5XX). Trying one more time without miscellaneous string filtering.]")
       run_count, standard_holding, unknown_holding, COUNTER = run_count + 1, [], [], COUNTER - len(unknown_holding)
